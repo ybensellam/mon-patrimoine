@@ -96,7 +96,8 @@ function renderHistory(){
 }
 function renderSpark(){const base=totals().value||100;$("#sparkline").innerHTML=Array.from({length:28},(_,i)=>`<i style="height:${Math.max(8,25+Math.sin(i/3)*13+i*1.1+(Math.random()-.5)*10)}px"></i>`).join("")}
 function navigate(page){$$(".page").forEach(x=>x.classList.toggle("active",x.dataset.page===page));$$("nav button").forEach(x=>x.classList.toggle("active",x.dataset.nav===page));$("#pageTitle").textContent={home:"Vue d’ensemble",assets:"Mes actifs",budget:"Budget mensuel",tasks:"Mes échéances",history:"Suivi mensuel"}[page];scrollTo({top:0,behavior:"smooth"})}
-function openModal(type,kind){
+function openModal(type,kind,editId){
+  $("#modalForm").dataset.editId=editId||"";
   const fields={asset:[
     field("Nom","name","text","Bitcoin, compte épargne, prêt…"),select("Type","type",[["crypto","Crypto"],["etf","ETF"],["gold","Or"],["savings","Compte d’épargne"],["cash","Argent cash"],["debt","Argent emprunté"]]),field("Symbole","symbol","text","BTC, EUR, XAU…"),field("Quantité","quantity","number","1"),field("Prix d’achat ou montant initial (€)","buyPrice","number","0"),field("Prix ou montant actuel (€)","price","number","0"),optionalField("Identifiant CoinGecko (crypto)","apiId","bitcoin"),optionalField("Symbole Twelve Data (ETF / or)","twelveSymbol","IWDA ou XAU/EUR")
   ],transaction:[
@@ -106,7 +107,7 @@ function openModal(type,kind){
   ],settings:[
     `<div class="field"><label>Clé API Twelve Data</label><input name="apiKey" type="password" autocomplete="off" placeholder="Votre clé API" value="${esc(localStorage.getItem(twelveDataKey)||"")}" required></div><p style="color:var(--muted);font-size:12px;line-height:1.5">La clé reste enregistrée uniquement sur cet appareil. Elle sert à actualiser les ETF et l’or.</p>`
   ]};
-  $("#modalTitle").textContent={asset:"Ajouter un actif",transaction:"Ajouter une transaction",task:"Ajouter une échéance",settings:"Réglages API"}[type];
+  $("#modalTitle").textContent=type==="asset"&&editId?"Modifier l’actif":{asset:"Ajouter un actif",transaction:"Ajouter une transaction",task:"Ajouter une échéance",settings:"Réglages API"}[type];
   $("#modalFields").innerHTML=fields[type].join("");$("#modalForm").dataset.type=type;$("#modal").showModal();
   if(type==="asset"){
     const typeSelect=$("#modalForm [name=type]"),symbol=$("#modalForm [name=symbol]"),quantity=$("#modalForm [name=quantity]");
@@ -119,6 +120,15 @@ function openModal(type,kind){
       twelveSymbol.closest(".field").hidden=isAccount;
     };
     typeSelect.addEventListener("change",syncAssetFields);syncAssetFields();
+    if(editId){
+      const asset=state.assets.find(item=>item.id===editId);
+      if(asset){
+        Object.entries(asset).forEach(([name,value])=>{const input=$(`#modalForm [name="${name}"]`);if(input&&value!=null)input.value=value});
+        syncAssetFields();
+        $("#modalFields").insertAdjacentHTML("beforeend",'<button type="button" class="danger" id="deleteAsset">Supprimer cet actif</button>');
+        $("#deleteAsset").addEventListener("click",()=>deleteAsset(editId));
+      }
+    }
   }
 }
 function field(label,name,type,placeholder){return `<div class="field"><label>${label}</label><input name="${name}" type="${type}" placeholder="${placeholder}" ${type==="number"?'step="any" min="0"':''} ${type==="date"?`value="${placeholder}"`:""} required></div>`}
@@ -126,11 +136,22 @@ function optionalField(label,name,placeholder){return `<div class="field"><label
 function select(label,name,options,selected){return `<div class="field"><label>${label}</label><select name="${name}">${options.map(([v,l])=>`<option value="${v}" ${v===selected?"selected":""}>${l}</option>`).join("")}</select></div>`}
 function submitModal(e){
   e.preventDefault();const type=e.currentTarget.dataset.type,data=Object.fromEntries(new FormData(e.currentTarget));
-  if(type==="asset")state.assets.push({...data,id:uid(),quantity:+data.quantity,buyPrice:+data.buyPrice,price:+data.price,previousPrice:+data.price});
+  if(type==="asset"){
+    const editId=e.currentTarget.dataset.editId;
+    const existing=state.assets.find(item=>item.id===editId);
+    const normalized={...data,quantity:+data.quantity,buyPrice:+data.buyPrice,price:+data.price};
+    if(existing)Object.assign(existing,normalized,{previousPrice:existing.price});
+    else state.assets.push({...normalized,id:uid(),previousPrice:normalized.price});
+  }
   if(type==="transaction")state.transactions.push({...data,id:uid(),amount:+data.amount});
   if(type==="task")state.tasks.push({...data,id:uid(),amount:+data.amount,done:false,recurring:data.recurring==="true"});
   if(type==="settings")localStorage.setItem(twelveDataKey,data.apiKey.trim());
   $("#modal").close();render();toast("Enregistré avec succès");
+}
+function deleteAsset(id){
+  if(!confirm("Supprimer définitivement cet actif ?"))return;
+  state.assets=state.assets.filter(asset=>asset.id!==id);
+  $("#modal").close();render();toast("Actif supprimé");
 }
 async function refreshPrices(){
   const cryptoAssets=state.assets.filter(a=>a.type==="crypto"&&a.apiId);
@@ -175,6 +196,8 @@ function monthName(s){return new Date(s+"-02").toLocaleDateString("fr-FR",{month
 function toast(s){$("#toast").textContent=s;$("#toast").classList.add("show");setTimeout(()=>$("#toast").classList.remove("show"),2200)}
 $$("[data-nav]").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.nav)));
 $$("[data-open]").forEach(b=>b.addEventListener("click",()=>openModal(b.dataset.open,b.dataset.kind)));
+$("#modalClose").addEventListener("click",()=>$("#modal").close());
+["#assetList","#assetPreview"].forEach(selector=>$(selector).addEventListener("click",event=>{const row=event.target.closest(".asset-row[data-id]");if(row)openModal("asset",null,row.dataset.id)}));
 $("#assetFilters").addEventListener("click",e=>{if(!e.target.dataset.filter)return;assetFilter=e.target.dataset.filter;$$("[data-filter]").forEach(b=>b.classList.toggle("active",b===e.target));renderAssets()});
 $("#modalForm").addEventListener("submit",submitModal);$("#refreshButton").addEventListener("click",refreshPrices);$("#snapshotButton").addEventListener("click",recordSnapshot);
 $("#prevMonth").addEventListener("click",()=>{taskCursor.setMonth(taskCursor.getMonth()-1);renderTasks()});$("#nextMonth").addEventListener("click",()=>{taskCursor.setMonth(taskCursor.getMonth()+1);renderTasks()});
