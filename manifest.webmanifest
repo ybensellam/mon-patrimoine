@@ -1,0 +1,17 @@
+{
+  "name": "Mon Patrimoine",
+  "short_name": "Patrimoine",
+  "description": "Patrimoine, budget et échéances personnelles",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#07140f",
+  "theme_color": "#07140f",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
