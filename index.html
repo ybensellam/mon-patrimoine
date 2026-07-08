@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#07140f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Mon Patrimoine">
+  <title>Mon Patrimoine</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header>
+      <div>
+        <p class="eyebrow" id="todayLabel"></p>
+        <h1 id="pageTitle">Vue d’ensemble</h1>
+      </div>
+      <div class="header-actions">
+        <button class="icon-button" data-open="settings" aria-label="Réglages API">⚙</button>
+        <button class="icon-button" id="refreshButton" aria-label="Actualiser les cours">↻</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="page active" data-page="home">
+        <article class="hero">
+          <div class="hero-top">
+            <span>Patrimoine total</span>
+            <span class="live-dot"><i></i> Cours à jour</span>
+          </div>
+          <strong class="total" id="netWorth">0,00 €</strong>
+          <div class="daily" id="dailyChange">Aujourd’hui · 0,00 € (0,00 %)</div>
+          <div class="spark" id="sparkline" aria-hidden="true"></div>
+          <div class="hero-stats">
+            <div><span>Investi</span><b id="totalInvested">0,00 €</b></div>
+            <div><span>Gain total</span><b id="totalGain">0,00 €</b></div>
+          </div>
+        </article>
+
+        <div class="section-title">
+          <h2>Répartition</h2>
+          <button data-open="asset">+ Ajouter</button>
+        </div>
+        <section class="allocation card">
+          <div class="donut" id="donut"><span id="donutCount">0</span><small>actifs</small></div>
+          <div id="allocationLegend" class="legend"></div>
+        </section>
+
+        <div class="section-title">
+          <h2>Mes actifs</h2>
+          <button data-nav="assets">Tout voir</button>
+        </div>
+        <section id="assetPreview" class="stack"></section>
+
+        <div class="section-title"><h2>Ce mois-ci</h2></div>
+        <section class="month-grid">
+          <article class="mini-card"><span>Revenus</span><b class="positive" id="monthIncome">0 €</b></article>
+          <article class="mini-card"><span>Dépenses</span><b class="negative" id="monthExpense">0 €</b></article>
+          <article class="mini-card"><span>Investi</span><b id="monthInvested">0 €</b></article>
+          <article class="mini-card"><span>Disponible</span><b id="monthAvailable">0 €</b></article>
+        </section>
+      </section>
+
+      <section class="page" data-page="assets">
+        <div class="segmented" id="assetFilters">
+          <button class="active" data-filter="all">Tous</button>
+          <button data-filter="crypto">Crypto</button>
+          <button data-filter="etf">ETF</button>
+          <button data-filter="gold">Or</button>
+          <button data-filter="savings">Épargne</button>
+          <button data-filter="cash">Cash</button>
+          <button data-filter="debt">Emprunts</button>
+        </div>
+        <section id="assetList" class="stack spacious"></section>
+        <button class="fab" data-open="asset">+</button>
+      </section>
+
+      <section class="page" data-page="budget">
+        <article class="balance-card">
+          <span>Reste disponible ce mois</span>
+          <strong id="budgetRemaining">0,00 €</strong>
+          <div class="progress"><i id="budgetProgress"></i></div>
+          <small id="budgetCaption">Ajoutez votre salaire pour commencer</small>
+        </article>
+        <div class="quick-actions">
+          <button data-open="transaction" data-kind="income"><b>↓</b><span>Revenu</span></button>
+          <button data-open="transaction" data-kind="expense"><b>↑</b><span>Dépense</span></button>
+          <button data-open="transaction" data-kind="investment"><b>↗</b><span>Investissement</span></button>
+        </div>
+        <div class="section-title"><h2>Transactions</h2><button data-open="transaction">+ Ajouter</button></div>
+        <section id="transactionList" class="stack"></section>
+      </section>
+
+      <section class="page" data-page="tasks">
+        <div class="month-switcher">
+          <button id="prevMonth">‹</button><h2 id="taskMonth"></h2><button id="nextMonth">›</button>
+        </div>
+        <section class="task-summary">
+          <div><span>À payer</span><b class="negative" id="toPay">0 €</b></div>
+          <div><span>À recevoir</span><b class="positive" id="toReceive">0 €</b></div>
+        </section>
+        <section id="taskList" class="stack"></section>
+        <button class="fab" data-open="task">+</button>
+      </section>
+
+      <section class="page" data-page="history">
+        <article class="card history-head">
+          <span>Évolution du patrimoine</span>
+          <strong id="historyTotal">0 €</strong>
+          <div id="historyChart" class="history-chart"></div>
+        </article>
+        <div class="section-title"><h2>Historique mensuel</h2><button id="snapshotButton">Enregistrer ce mois</button></div>
+        <section id="historyList" class="stack"></section>
+      </section>
+    </main>
+
+    <nav>
+      <button class="active" data-nav="home"><b>⌂</b><span>Accueil</span></button>
+      <button data-nav="assets"><b>◫</b><span>Actifs</span></button>
+      <button data-nav="budget"><b>◎</b><span>Budget</span></button>
+      <button data-nav="tasks"><b>✓</b><span>Échéances</span></button>
+      <button data-nav="history"><b>↗</b><span>Suivi</span></button>
+    </nav>
+  </div>
+
+  <dialog id="modal">
+    <form method="dialog" id="modalForm">
+      <div class="modal-handle"></div>
+      <div class="modal-title"><h2 id="modalTitle"></h2><button value="cancel" aria-label="Fermer">×</button></div>
+      <div id="modalFields"></div>
+      <button class="primary" id="saveButton" value="default">Enregistrer</button>
+    </form>
+  </dialog>
+  <div id="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>
