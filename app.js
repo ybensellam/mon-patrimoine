@@ -80,7 +80,7 @@ function renderAllocation(){
 function renderTransactions(){
   const icons={income:"↓",expense:"↑",investment:"↗"};
   const items=[...state.transactions].sort((a,b)=>b.date.localeCompare(a.date));
-  $("#transactionList").innerHTML=items.length?items.map(t=>`<article class="transaction-row"><div class="tx-icon ${t.kind==="expense"?"negative":"positive"}">${icons[t.kind]}</div><div class="content"><b>${esc(t.label)}</b><span>${esc(t.category)} · ${dateFr(t.date)}</span></div><div class="value"><b class="${t.kind==="income"?"positive":t.kind==="expense"?"negative":""}">${t.kind==="income"?"+":"−"}${money.format(t.amount)}</b></div></article>`).join(""):empty("Aucune transaction");
+  $("#transactionList").innerHTML=items.length?items.map(t=>`<article class="transaction-row" data-id="${t.id}"><div class="tx-icon ${t.kind==="expense"?"negative":"positive"}">${icons[t.kind]}</div><div class="content"><b>${esc(t.label)}</b><span>${esc(t.category)} · ${dateFr(t.date)}</span></div><div class="value"><b class="${t.kind==="income"?"positive":t.kind==="expense"?"negative":""}">${t.kind==="income"?"+":"−"}${money.format(t.amount)}</b></div></article>`).join(""):empty("Aucune transaction");
 }
 function renderTasks(){
   const mk=monthKey(taskCursor),items=state.tasks.filter(t=>t.date.startsWith(mk)).sort((a,b)=>a.date.localeCompare(b.date));
@@ -107,7 +107,7 @@ function openModal(type,kind,editId){
   ],settings:[
     `<div class="field"><label>Clé API Twelve Data</label><input name="apiKey" type="password" autocomplete="off" placeholder="Votre clé API" value="${esc(localStorage.getItem(twelveDataKey)||"")}" required></div><p style="color:var(--muted);font-size:12px;line-height:1.5">La clé reste enregistrée uniquement sur cet appareil. Elle sert à actualiser les ETF et l’or.</p>`
   ]};
-  $("#modalTitle").textContent=type==="asset"&&editId?"Modifier l’actif":{asset:"Ajouter un actif",transaction:"Ajouter une transaction",task:"Ajouter une échéance",settings:"Réglages API"}[type];
+  $("#modalTitle").textContent=editId&&type==="asset"?"Modifier l’actif":editId&&type==="transaction"?"Modifier la transaction":{asset:"Ajouter un actif",transaction:"Ajouter une transaction",task:"Ajouter une échéance",settings:"Réglages API"}[type];
   $("#modalFields").innerHTML=fields[type].join("");$("#modalForm").dataset.type=type;$("#modal").showModal();
   if(type==="asset"){
     const typeSelect=$("#modalForm [name=type]"),symbol=$("#modalForm [name=symbol]"),quantity=$("#modalForm [name=quantity]");
@@ -130,6 +130,14 @@ function openModal(type,kind,editId){
       }
     }
   }
+  if(type==="transaction"&&editId){
+    const transaction=state.transactions.find(item=>item.id===editId);
+    if(transaction){
+      Object.entries(transaction).forEach(([name,value])=>{const input=$(`#modalForm [name="${name}"]`);if(input&&value!=null)input.value=value});
+      $("#modalFields").insertAdjacentHTML("beforeend",'<button type="button" class="danger" id="deleteTransaction">Supprimer cette transaction</button>');
+      $("#deleteTransaction").addEventListener("click",()=>deleteTransaction(editId));
+    }
+  }
 }
 function field(label,name,type,placeholder){return `<div class="field"><label>${label}</label><input name="${name}" type="${type}" placeholder="${placeholder}" ${type==="number"?'step="any" min="0"':''} ${type==="date"?`value="${placeholder}"`:""} required></div>`}
 function optionalField(label,name,placeholder){return `<div class="field"><label>${label}</label><input name="${name}" type="text" placeholder="${placeholder}"></div>`}
@@ -143,7 +151,13 @@ function submitModal(e){
     if(existing)Object.assign(existing,normalized,{previousPrice:existing.price});
     else state.assets.push({...normalized,id:uid(),previousPrice:normalized.price});
   }
-  if(type==="transaction")state.transactions.push({...data,id:uid(),amount:+data.amount});
+  if(type==="transaction"){
+    const editId=e.currentTarget.dataset.editId;
+    const existing=state.transactions.find(item=>item.id===editId);
+    const normalized={...data,amount:+data.amount};
+    if(existing)Object.assign(existing,normalized);
+    else state.transactions.push({...normalized,id:uid()});
+  }
   if(type==="task")state.tasks.push({...data,id:uid(),amount:+data.amount,done:false,recurring:data.recurring==="true"});
   if(type==="settings")localStorage.setItem(twelveDataKey,data.apiKey.trim());
   $("#modal").close();render();toast("Enregistré avec succès");
@@ -152,6 +166,11 @@ function deleteAsset(id){
   if(!confirm("Supprimer définitivement cet actif ?"))return;
   state.assets=state.assets.filter(asset=>asset.id!==id);
   $("#modal").close();render();toast("Actif supprimé");
+}
+function deleteTransaction(id){
+  if(!confirm("Supprimer définitivement cette transaction ?"))return;
+  state.transactions=state.transactions.filter(transaction=>transaction.id!==id);
+  $("#modal").close();render();toast("Transaction supprimée");
 }
 async function refreshPrices(){
   const cryptoAssets=state.assets.filter(a=>a.type==="crypto"&&a.apiId);
@@ -198,6 +217,7 @@ $$("[data-nav]").forEach(b=>b.addEventListener("click",()=>navigate(b.dataset.na
 $$("[data-open]").forEach(b=>b.addEventListener("click",()=>openModal(b.dataset.open,b.dataset.kind)));
 $("#modalClose").addEventListener("click",()=>$("#modal").close());
 ["#assetList","#assetPreview"].forEach(selector=>$(selector).addEventListener("click",event=>{const row=event.target.closest(".asset-row[data-id]");if(row)openModal("asset",null,row.dataset.id)}));
+$("#transactionList").addEventListener("click",event=>{const row=event.target.closest(".transaction-row[data-id]");if(row)openModal("transaction",null,row.dataset.id)});
 $("#assetFilters").addEventListener("click",e=>{if(!e.target.dataset.filter)return;assetFilter=e.target.dataset.filter;$$("[data-filter]").forEach(b=>b.classList.toggle("active",b===e.target));renderAssets()});
 $("#modalForm").addEventListener("submit",submitModal);$("#refreshButton").addEventListener("click",refreshPrices);$("#snapshotButton").addEventListener("click",recordSnapshot);
 $("#prevMonth").addEventListener("click",()=>{taskCursor.setMonth(taskCursor.getMonth()-1);renderTasks()});$("#nextMonth").addEventListener("click",()=>{taskCursor.setMonth(taskCursor.getMonth()+1);renderTasks()});
